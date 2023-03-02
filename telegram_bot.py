@@ -12,7 +12,7 @@ message_history = {}
 def log_message(name, text):
     global message_history
     message_history[name].append(text)
-    message_history[name] = message_history[name][-6:]
+    message_history[name] = message_history[name][-HISTORY_SIZE:]
     with open(f"logging/{name}.txt", "a") as t:
         t.write("\n" + text)
 
@@ -31,29 +31,28 @@ async def conversation(update: Update, context: ContextTypes.DEFAULT_TYPE):
     name = update.effective_chat.username
     text = update.message.text
 
+    if name not in user_intents.keys():
+        user_intents[name] = []
+        message_history[name] = []
+
     log_message(name, text)
-
     intent = classification_inference(text)
-    k = [i for i in user_intents[name] if i != "other" and "trade" not in i]
-    if intent == "trade" and len(k) == 0:
-        intent = "other"
-    elif intent == "trade":
-        intent = k[-1] + "_trade"
-    elif intent in user_intents[name]:
-        intent = "other"
 
-    intent = "other" if intent == user_intents[name][-1] else intent
-
-    if "trade" in intent:
+    services_hist = [i for i in user_intents[name] if i in services_list]
+    if intent in services_list and intent not in services_hist:
+        ans = base_answer() + prepared_messages[intent]
+    elif intent == "trade" and len(services_hist):
+        intent = services_hist[-1] + "_trade"
         ans = prepared_messages[intent]
-    elif intent == "other":
+    elif intent in ["name", "description"]:
+        ans = prepared_messages[intent]
+    else:
+        intent = "other"
         input_text = "- " + "\n- ".join(message_history[name]) + "\n-"
         ans = gpt_inference(input_text)
-    else:
-        ans = base_answer() + prepared_messages[intent]
 
     user_intents[name].append(intent)
-    user_intents[name] = user_intents[name][-5:]
+    user_intents[name] = user_intents[name][-HISTORY_SIZE:]
 
     log_message(name, ans)
 

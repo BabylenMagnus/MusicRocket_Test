@@ -1,0 +1,6 @@
+PyYAML
+numpy
+pandas
+torch
+transformers
+python-telegram-bot

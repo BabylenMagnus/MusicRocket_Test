@@ -3,14 +3,15 @@ import yaml
 import torch
 
 from config import *
+from  utils import bert_tokenize
 
-from transformers import AutoTokenizer, AutoModelForCausalLM
+from transformers import AutoTokenizer, AutoModelForCausalLM, BertTokenizer, BatchEncoding
 
 
 with open(prepared_messages_path, "r") as t:
     prepared_messages = yaml.safe_load(t)
 
-base_answer = lambda: random.choice([prepared_messages["base_answers"]]) + ": "
+base_answer = lambda: random.choice(prepared_messages["base_answers"]) + ": "
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 classification_model = torch.load(weight_path).to(device).eval()
@@ -21,19 +22,11 @@ gpt_model.tokenizer = AutoTokenizer.from_pretrained("inkoziev/rugpt_chitchat")
 gpt_model.tokenizer.add_special_tokens({'bos_token': '<s>', 'eos_token': '</s>', 'pad_token': '<pad>'})
 
 
-def classification_inference(text: str):
+def classification_inference(text: str) -> str:
     """
     Классифицирует текст одним из классов, которые есть в train.csv
     """
-    encoding = classification_model.tokenizer.encode_plus(
-        text,
-        add_special_tokens=True,
-        max_length=512,
-        return_token_type_ids=False,
-        padding='max_length',
-        return_attention_mask=True,
-        return_tensors='pt',
-    )
+    encoding = bert_tokenize(classification_model.tokenizer, text)
 
     input_ids = encoding["input_ids"].to(device)
     attention_mask = encoding["attention_mask"].to(device)
